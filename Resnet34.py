@@ -1,0 +1,361 @@
+{
+  "nbformat": 4,
+  "nbformat_minor": 0,
+  "metadata": {
+    "colab": {
+      "name": "Resnet34",
+      "provenance": [],
+      "include_colab_link": true
+    },
+    "kernelspec": {
+      "name": "python3",
+      "display_name": "Python 3"
+    }
+  },
+  "cells": [
+    {
+      "cell_type": "markdown",
+      "metadata": {
+        "id": "view-in-github",
+        "colab_type": "text"
+      },
+      "source": [
+        "<a href=\"https://colab.research.google.com/github/doanquanvietnamca/pytorch-deploy/blob/master/Resnet34.py\" target=\"_parent\"><img src=\"https://colab.research.google.com/assets/colab-badge.svg\" alt=\"Open In Colab\"/></a>"
+      ]
+    },
+    {
+      "cell_type": "code",
+      "metadata": {
+        "id": "z5xSPmWBG7oL",
+        "colab_type": "code",
+        "colab": {}
+      },
+      "source": [
+        "import torch\n",
+        "from torch import nn\n",
+        "\n",
+        "    "
+      ],
+      "execution_count": 0,
+      "outputs": []
+    },
+    {
+      "cell_type": "code",
+      "metadata": {
+        "id": "5KgGAtr7HBZl",
+        "colab_type": "code",
+        "colab": {}
+      },
+      "source": [
+        "\n",
+        "def conv3x3(in_planes, out_planes, stride=1, groups=1, dilation=1):\n",
+        "    \"\"\"3x3 convolution with padding\"\"\"\n",
+        "    return nn.Conv2d(in_planes, out_planes, kernel_size=3, stride=stride,\n",
+        "                     padding=dilation, groups=groups, bias=False, dilation=dilation)\n",
+        "\n",
+        "class BasicBlock(nn.Module):\n",
+        "    expansion = 1\n",
+        "\n",
+        "    def __init__(self, inplanes, planes, stride=1, downsample=None):\n",
+        "        super(BasicBlock, self).__init__()\n",
+        "        self.conv1 = conv3x3(inplanes, planes, stride)\n",
+        "        self.bn1 = nn.BatchNorm2d(planes)\n",
+        "        self.relu = nn.ReLU(inplace=True)\n",
+        "        self.conv2 = conv3x3(planes, planes)\n",
+        "        self.bn2 = nn.BatchNorm2d(planes)\n",
+        "        self.downsample = downsample\n",
+        "        self.stride = stride\n",
+        "    def forward(self, x):\n",
+        "            residual = x\n",
+        "\n",
+        "            out = self.conv1(x)\n",
+        "            out = self.bn1(out)\n",
+        "            out = self.relu(out)\n",
+        "\n",
+        "            out = self.conv2(out)\n",
+        "            out = self.bn2(out)\n",
+        "\n",
+        "            if self.downsample is not None:\n",
+        "                residual = self.downsample(x)\n",
+        "\n",
+        "            out += residual\n",
+        "            out = self.relu(out)\n",
+        "\n",
+        "            return out"
+      ],
+      "execution_count": 0,
+      "outputs": []
+    },
+    {
+      "cell_type": "code",
+      "metadata": {
+        "id": "FUPLpYuqHLE1",
+        "colab_type": "code",
+        "colab": {}
+      },
+      "source": [
+        "class ResNet(nn.Module):\n",
+        "\n",
+        "    def __init__(self, block, layers, num_classes=1000):\n",
+        "        self.inplanes = 64\n",
+        "        super(ResNet, self).__init__()\n",
+        "        self.conv1 = nn.Conv2d(3, 64, kernel_size=7, stride=2, padding=3,\n",
+        "                               bias=False)\n",
+        "        self.bn1 = nn.BatchNorm2d(64)\n",
+        "        self.relu = nn.ReLU(inplace=True)\n",
+        "        self.maxpool = nn.MaxPool2d(kernel_size=3, stride=2, padding=1)\n",
+        "        self.layer1 = self._make_layer(block, 64, layers[0])\n",
+        "        self.layer2 = self._make_layer(block, 128, layers[1], stride=2)\n",
+        "        self.layer3 = self._make_layer(block, 256, layers[2], stride=2)\n",
+        "        self.layer4 = self._make_layer(block, 512, layers[3], stride=2)\n",
+        "        self.avgpool = nn.AvgPool2d(7, stride=1)\n",
+        "        self.fc = nn.Linear(512 * block.expansion, num_classes)\n",
+        "    def _make_layer(self, block, planes, blocks, stride=1):\n",
+        "        downsample = None\n",
+        "        if stride != 1 or self.inplanes != planes * block.expansion:\n",
+        "            downsample = nn.Sequential(\n",
+        "                nn.Conv2d(self.inplanes, planes * block.expansion,\n",
+        "                          kernel_size=1, stride=stride, bias=False),\n",
+        "                nn.BatchNorm2d(planes * block.expansion),\n",
+        "            )\n",
+        "\n",
+        "        layers = []\n",
+        "        layers.append(block(self.inplanes, planes, stride, downsample))\n",
+        "        self.inplanes = planes * block.expansion\n",
+        "        for i in range(1, blocks):\n",
+        "            layers.append(block(self.inplanes, planes))\n",
+        "\n",
+        "        return nn.Sequential(*layers)\n",
+        "    def forward(self, x):\n",
+        "        x = self.conv1(x)    # 224x224\n",
+        "        x = self.bn1(x)     \n",
+        "        x = self.relu(x)\n",
+        "        x = self.maxpool(x)  # 112x112\n",
+        "\n",
+        "        x = self.layer1(x)   # 56x56\n",
+        "        x = self.layer2(x)   # 28x28\n",
+        "        x = self.layer3(x)   # 14x14\n",
+        "        x = self.layer4(x)   # 7x7\n",
+        "\n",
+        "        x = self.avgpool(x)  # 1x1\n",
+        "        x = x.view(x.size(0), -1)\n",
+        "        x = self.fc(x)\n",
+        "\n",
+        "        return x\n",
+        "      "
+      ],
+      "execution_count": 0,
+      "outputs": []
+    },
+    {
+      "cell_type": "code",
+      "metadata": {
+        "id": "v8S5LVzNHS5B",
+        "colab_type": "code",
+        "colab": {}
+      },
+      "source": [
+        "def resnet34(**kwargs):\n",
+        "    model = ResNet(BasicBlock, [3, 4, 6, 3], **kwargs)\n",
+        "    return model"
+      ],
+      "execution_count": 0,
+      "outputs": []
+    },
+    {
+      "cell_type": "code",
+      "metadata": {
+        "id": "SNXU_bw-Hjhw",
+        "colab_type": "code",
+        "colab": {}
+      },
+      "source": [
+        "model = resnet34()"
+      ],
+      "execution_count": 0,
+      "outputs": []
+    },
+    {
+      "cell_type": "code",
+      "metadata": {
+        "id": "0gqTpUEoHlYG",
+        "colab_type": "code",
+        "colab": {
+          "base_uri": "https://localhost:8080/",
+          "height": 1000
+        },
+        "outputId": "088d3800-8a32-4ba1-f312-c4e2bc9a2660"
+      },
+      "source": [
+        "model"
+      ],
+      "execution_count": 24,
+      "outputs": [
+        {
+          "output_type": "execute_result",
+          "data": {
+            "text/plain": [
+              "ResNet(\n",
+              "  (conv1): Conv2d(3, 64, kernel_size=(7, 7), stride=(2, 2), padding=(3, 3), bias=False)\n",
+              "  (bn1): BatchNorm2d(64, eps=1e-05, momentum=0.1, affine=True, track_running_stats=True)\n",
+              "  (relu): ReLU(inplace=True)\n",
+              "  (maxpool): MaxPool2d(kernel_size=3, stride=2, padding=1, dilation=1, ceil_mode=False)\n",
+              "  (layer1): Sequential(\n",
+              "    (0): BasicBlock(\n",
+              "      (conv1): Conv2d(64, 64, kernel_size=(3, 3), stride=(1, 1), padding=(1, 1), bias=False)\n",
+              "      (bn1): BatchNorm2d(64, eps=1e-05, momentum=0.1, affine=True, track_running_stats=True)\n",
+              "      (relu): ReLU(inplace=True)\n",
+              "      (conv2): Conv2d(64, 64, kernel_size=(3, 3), stride=(1, 1), padding=(1, 1), bias=False)\n",
+              "      (bn2): BatchNorm2d(64, eps=1e-05, momentum=0.1, affine=True, track_running_stats=True)\n",
+              "    )\n",
+              "    (1): BasicBlock(\n",
+              "      (conv1): Conv2d(64, 64, kernel_size=(3, 3), stride=(1, 1), padding=(1, 1), bias=False)\n",
+              "      (bn1): BatchNorm2d(64, eps=1e-05, momentum=0.1, affine=True, track_running_stats=True)\n",
+              "      (relu): ReLU(inplace=True)\n",
+              "      (conv2): Conv2d(64, 64, kernel_size=(3, 3), stride=(1, 1), padding=(1, 1), bias=False)\n",
+              "      (bn2): BatchNorm2d(64, eps=1e-05, momentum=0.1, affine=True, track_running_stats=True)\n",
+              "    )\n",
+              "    (2): BasicBlock(\n",
+              "      (conv1): Conv2d(64, 64, kernel_size=(3, 3), stride=(1, 1), padding=(1, 1), bias=False)\n",
+              "      (bn1): BatchNorm2d(64, eps=1e-05, momentum=0.1, affine=True, track_running_stats=True)\n",
+              "      (relu): ReLU(inplace=True)\n",
+              "      (conv2): Conv2d(64, 64, kernel_size=(3, 3), stride=(1, 1), padding=(1, 1), bias=False)\n",
+              "      (bn2): BatchNorm2d(64, eps=1e-05, momentum=0.1, affine=True, track_running_stats=True)\n",
+              "    )\n",
+              "  )\n",
+              "  (layer2): Sequential(\n",
+              "    (0): BasicBlock(\n",
+              "      (conv1): Conv2d(64, 128, kernel_size=(3, 3), stride=(2, 2), padding=(1, 1), bias=False)\n",
+              "      (bn1): BatchNorm2d(128, eps=1e-05, momentum=0.1, affine=True, track_running_stats=True)\n",
+              "      (relu): ReLU(inplace=True)\n",
+              "      (conv2): Conv2d(128, 128, kernel_size=(3, 3), stride=(1, 1), padding=(1, 1), bias=False)\n",
+              "      (bn2): BatchNorm2d(128, eps=1e-05, momentum=0.1, affine=True, track_running_stats=True)\n",
+              "      (downsample): Sequential(\n",
+              "        (0): Conv2d(64, 128, kernel_size=(1, 1), stride=(2, 2), bias=False)\n",
+              "        (1): BatchNorm2d(128, eps=1e-05, momentum=0.1, affine=True, track_running_stats=True)\n",
+              "      )\n",
+              "    )\n",
+              "    (1): BasicBlock(\n",
+              "      (conv1): Conv2d(128, 128, kernel_size=(3, 3), stride=(1, 1), padding=(1, 1), bias=False)\n",
+              "      (bn1): BatchNorm2d(128, eps=1e-05, momentum=0.1, affine=True, track_running_stats=True)\n",
+              "      (relu): ReLU(inplace=True)\n",
+              "      (conv2): Conv2d(128, 128, kernel_size=(3, 3), stride=(1, 1), padding=(1, 1), bias=False)\n",
+              "      (bn2): BatchNorm2d(128, eps=1e-05, momentum=0.1, affine=True, track_running_stats=True)\n",
+              "    )\n",
+              "    (2): BasicBlock(\n",
+              "      (conv1): Conv2d(128, 128, kernel_size=(3, 3), stride=(1, 1), padding=(1, 1), bias=False)\n",
+              "      (bn1): BatchNorm2d(128, eps=1e-05, momentum=0.1, affine=True, track_running_stats=True)\n",
+              "      (relu): ReLU(inplace=True)\n",
+              "      (conv2): Conv2d(128, 128, kernel_size=(3, 3), stride=(1, 1), padding=(1, 1), bias=False)\n",
+              "      (bn2): BatchNorm2d(128, eps=1e-05, momentum=0.1, affine=True, track_running_stats=True)\n",
+              "    )\n",
+              "    (3): BasicBlock(\n",
+              "      (conv1): Conv2d(128, 128, kernel_size=(3, 3), stride=(1, 1), padding=(1, 1), bias=False)\n",
+              "      (bn1): BatchNorm2d(128, eps=1e-05, momentum=0.1, affine=True, track_running_stats=True)\n",
+              "      (relu): ReLU(inplace=True)\n",
+              "      (conv2): Conv2d(128, 128, kernel_size=(3, 3), stride=(1, 1), padding=(1, 1), bias=False)\n",
+              "      (bn2): BatchNorm2d(128, eps=1e-05, momentum=0.1, affine=True, track_running_stats=True)\n",
+              "    )\n",
+              "  )\n",
+              "  (layer3): Sequential(\n",
+              "    (0): BasicBlock(\n",
+              "      (conv1): Conv2d(128, 256, kernel_size=(3, 3), stride=(2, 2), padding=(1, 1), bias=False)\n",
+              "      (bn1): BatchNorm2d(256, eps=1e-05, momentum=0.1, affine=True, track_running_stats=True)\n",
+              "      (relu): ReLU(inplace=True)\n",
+              "      (conv2): Conv2d(256, 256, kernel_size=(3, 3), stride=(1, 1), padding=(1, 1), bias=False)\n",
+              "      (bn2): BatchNorm2d(256, eps=1e-05, momentum=0.1, affine=True, track_running_stats=True)\n",
+              "      (downsample): Sequential(\n",
+              "        (0): Conv2d(128, 256, kernel_size=(1, 1), stride=(2, 2), bias=False)\n",
+              "        (1): BatchNorm2d(256, eps=1e-05, momentum=0.1, affine=True, track_running_stats=True)\n",
+              "      )\n",
+              "    )\n",
+              "    (1): BasicBlock(\n",
+              "      (conv1): Conv2d(256, 256, kernel_size=(3, 3), stride=(1, 1), padding=(1, 1), bias=False)\n",
+              "      (bn1): BatchNorm2d(256, eps=1e-05, momentum=0.1, affine=True, track_running_stats=True)\n",
+              "      (relu): ReLU(inplace=True)\n",
+              "      (conv2): Conv2d(256, 256, kernel_size=(3, 3), stride=(1, 1), padding=(1, 1), bias=False)\n",
+              "      (bn2): BatchNorm2d(256, eps=1e-05, momentum=0.1, affine=True, track_running_stats=True)\n",
+              "    )\n",
+              "    (2): BasicBlock(\n",
+              "      (conv1): Conv2d(256, 256, kernel_size=(3, 3), stride=(1, 1), padding=(1, 1), bias=False)\n",
+              "      (bn1): BatchNorm2d(256, eps=1e-05, momentum=0.1, affine=True, track_running_stats=True)\n",
+              "      (relu): ReLU(inplace=True)\n",
+              "      (conv2): Conv2d(256, 256, kernel_size=(3, 3), stride=(1, 1), padding=(1, 1), bias=False)\n",
+              "      (bn2): BatchNorm2d(256, eps=1e-05, momentum=0.1, affine=True, track_running_stats=True)\n",
+              "    )\n",
+              "    (3): BasicBlock(\n",
+              "      (conv1): Conv2d(256, 256, kernel_size=(3, 3), stride=(1, 1), padding=(1, 1), bias=False)\n",
+              "      (bn1): BatchNorm2d(256, eps=1e-05, momentum=0.1, affine=True, track_running_stats=True)\n",
+              "      (relu): ReLU(inplace=True)\n",
+              "      (conv2): Conv2d(256, 256, kernel_size=(3, 3), stride=(1, 1), padding=(1, 1), bias=False)\n",
+              "      (bn2): BatchNorm2d(256, eps=1e-05, momentum=0.1, affine=True, track_running_stats=True)\n",
+              "    )\n",
+              "    (4): BasicBlock(\n",
+              "      (conv1): Conv2d(256, 256, kernel_size=(3, 3), stride=(1, 1), padding=(1, 1), bias=False)\n",
+              "      (bn1): BatchNorm2d(256, eps=1e-05, momentum=0.1, affine=True, track_running_stats=True)\n",
+              "      (relu): ReLU(inplace=True)\n",
+              "      (conv2): Conv2d(256, 256, kernel_size=(3, 3), stride=(1, 1), padding=(1, 1), bias=False)\n",
+              "      (bn2): BatchNorm2d(256, eps=1e-05, momentum=0.1, affine=True, track_running_stats=True)\n",
+              "    )\n",
+              "    (5): BasicBlock(\n",
+              "      (conv1): Conv2d(256, 256, kernel_size=(3, 3), stride=(1, 1), padding=(1, 1), bias=False)\n",
+              "      (bn1): BatchNorm2d(256, eps=1e-05, momentum=0.1, affine=True, track_running_stats=True)\n",
+              "      (relu): ReLU(inplace=True)\n",
+              "      (conv2): Conv2d(256, 256, kernel_size=(3, 3), stride=(1, 1), padding=(1, 1), bias=False)\n",
+              "      (bn2): BatchNorm2d(256, eps=1e-05, momentum=0.1, affine=True, track_running_stats=True)\n",
+              "    )\n",
+              "  )\n",
+              "  (layer4): Sequential(\n",
+              "    (0): BasicBlock(\n",
+              "      (conv1): Conv2d(256, 512, kernel_size=(3, 3), stride=(2, 2), padding=(1, 1), bias=False)\n",
+              "      (bn1): BatchNorm2d(512, eps=1e-05, momentum=0.1, affine=True, track_running_stats=True)\n",
+              "      (relu): ReLU(inplace=True)\n",
+              "      (conv2): Conv2d(512, 512, kernel_size=(3, 3), stride=(1, 1), padding=(1, 1), bias=False)\n",
+              "      (bn2): BatchNorm2d(512, eps=1e-05, momentum=0.1, affine=True, track_running_stats=True)\n",
+              "      (downsample): Sequential(\n",
+              "        (0): Conv2d(256, 512, kernel_size=(1, 1), stride=(2, 2), bias=False)\n",
+              "        (1): BatchNorm2d(512, eps=1e-05, momentum=0.1, affine=True, track_running_stats=True)\n",
+              "      )\n",
+              "    )\n",
+              "    (1): BasicBlock(\n",
+              "      (conv1): Conv2d(512, 512, kernel_size=(3, 3), stride=(1, 1), padding=(1, 1), bias=False)\n",
+              "      (bn1): BatchNorm2d(512, eps=1e-05, momentum=0.1, affine=True, track_running_stats=True)\n",
+              "      (relu): ReLU(inplace=True)\n",
+              "      (conv2): Conv2d(512, 512, kernel_size=(3, 3), stride=(1, 1), padding=(1, 1), bias=False)\n",
+              "      (bn2): BatchNorm2d(512, eps=1e-05, momentum=0.1, affine=True, track_running_stats=True)\n",
+              "    )\n",
+              "    (2): BasicBlock(\n",
+              "      (conv1): Conv2d(512, 512, kernel_size=(3, 3), stride=(1, 1), padding=(1, 1), bias=False)\n",
+              "      (bn1): BatchNorm2d(512, eps=1e-05, momentum=0.1, affine=True, track_running_stats=True)\n",
+              "      (relu): ReLU(inplace=True)\n",
+              "      (conv2): Conv2d(512, 512, kernel_size=(3, 3), stride=(1, 1), padding=(1, 1), bias=False)\n",
+              "      (bn2): BatchNorm2d(512, eps=1e-05, momentum=0.1, affine=True, track_running_stats=True)\n",
+              "    )\n",
+              "  )\n",
+              "  (avgpool): AvgPool2d(kernel_size=7, stride=1, padding=0)\n",
+              "  (fc): Linear(in_features=512, out_features=1000, bias=True)\n",
+              ")"
+            ]
+          },
+          "metadata": {
+            "tags": []
+          },
+          "execution_count": 24
+        }
+      ]
+    },
+    {
+      "cell_type": "code",
+      "metadata": {
+        "id": "_EdzRXYTUYqy",
+        "colab_type": "code",
+        "colab": {}
+      },
+      "source": [
+        ""
+      ],
+      "execution_count": 0,
+      "outputs": []
+    }
+  ]
+}
