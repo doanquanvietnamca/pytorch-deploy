@@ -6,20 +6,9 @@ Script provides functional interface for Mish activation function.
 import torch
 import torch.nn.functional as F
 
-def mish(input):
-    '''
-    Applies the mish function element-wise:
-    mish(x) = x * tanh(softplus(x)) = x * tanh(ln(1 + exp(x)))
-    See additional documentation for mish class.
-    '''
-    return input * torch.tanh(F.softplus(input))
-    
-    
-# import pytorch
 from torch import nn
 
-# import activation functions
-import Mish.Torch.functional as Func
+
 
 class Mish(nn.Module):
     '''
@@ -44,4 +33,11 @@ class Mish(nn.Module):
         '''
         Forward pass of the function.
         '''
-        return Func.mish(input)
+        return mish(input)
+    def mish(input):
+        '''
+        Applies the mish function element-wise:
+        mish(x) = x * tanh(softplus(x)) = x * tanh(ln(1 + exp(x)))
+        See additional documentation for mish class.
+        '''
+        return input * torch.tanh(F.softplus(input))
