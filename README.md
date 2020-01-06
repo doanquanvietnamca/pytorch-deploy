@@ -7,3 +7,7 @@ https://towardsdatascience.com/custom-loss-function-in-tensorflow-2-0-d8fa35405e
 ```
 https://machinelearningmastery.com/roc-curves-and-precision-recall-curves-for-imbalanced-classification/
 ```
+### 2019 — Year of BERT and Transformer
+```
+https://towardsdatascience.com/2019-year-of-bert-and-transformer-f200b53d05b9
+```
