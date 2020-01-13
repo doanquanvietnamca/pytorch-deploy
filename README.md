@@ -11,3 +11,7 @@ https://machinelearningmastery.com/roc-curves-and-precision-recall-curves-for-im
 ```
 https://towardsdatascience.com/2019-year-of-bert-and-transformer-f200b53d05b9
 ```
+### Named Entity Recognition With Bert
+```
+https://www.depends-on-the-definition.com/named-entity-recognition-with-bert/
+```
