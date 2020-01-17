@@ -15,3 +15,7 @@ https://towardsdatascience.com/2019-year-of-bert-and-transformer-f200b53d05b9
 ```
 https://www.depends-on-the-definition.com/named-entity-recognition-with-bert/
 ```
+### TinyBERT for Search: 10x faster and 20x smaller than BERT
+```
+https://towardsdatascience.com/tinybert-for-search-10x-faster-and-20x-smaller-than-bert-74cd1b6b5aec
+```
