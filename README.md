@@ -19,3 +19,7 @@ https://www.depends-on-the-definition.com/named-entity-recognition-with-bert/
 ```
 https://towardsdatascience.com/tinybert-for-search-10x-faster-and-20x-smaller-than-bert-74cd1b6b5aec
 ```
+### fast bert
+```
+https://github.com/kaushaltrivedi/fast-bert
+```
